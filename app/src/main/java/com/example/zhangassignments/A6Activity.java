@@ -48,6 +48,7 @@ public class A6Activity extends AppCompatActivity {
         findViewById(R.id.searchmeal_btn_search).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                showProgress(A6Activity.this, "Loading\nPlease wait");
                 searchMealByName(recipeNameEt.getText().toString(), new MealSearchCallback() {
                     @Override
                     public void onResult(String result) {
@@ -107,6 +108,7 @@ public class A6Activity extends AppCompatActivity {
                     InputStream inputStream = urlConnection.getInputStream();
                     StringBuilder builder = new StringBuilder();
 
+                    dismissProgress();
                     if (inputStream == null) {
                         // Nothing to do.
                         return;
@@ -138,9 +140,9 @@ public class A6Activity extends AppCompatActivity {
                 } catch (IOException e) {
                     // Log error
                     e.printStackTrace();
-
+                    dismissProgress();
                 } finally {
-
+                    dismissProgress();
                     if (urlConnection != null) {
                         urlConnection.disconnect();
                     }
@@ -158,4 +160,16 @@ public class A6Activity extends AppCompatActivity {
     }
 
 
+    public void showProgress(Context context, String message){
+        pDialog = new ProgressDialog(context); //Your Activity.this
+        pDialog.setMessage(message);
+        pDialog.setCancelable(false);
+        pDialog.show();
+    }
+
+    public void dismissProgress(){
+        if(pDialog.isShowing()){
+            pDialog.dismiss();
+        }
+    }
 }
