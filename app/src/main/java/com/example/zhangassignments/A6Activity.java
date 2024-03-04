@@ -27,14 +27,134 @@ import java.util.List;
 
 public class A6Activity extends AppCompatActivity {
 
+    private ProgressDialog pDialog;
+    public interface MealSearchCallback {
+        void onResult(String result);
+    }
 
+    public List<Meal> allMeals = new ArrayList<>();
+    private RecyclerView recyclerView;
+    private MealAdapter mealAdapter;
+
+    private EditText recipeNameEt;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_a6);
 
+        recyclerView = findViewById(R.id.a6_rv_meals);
+
+        recipeNameEt = findViewById(R.id.a6_et_name);
+        findViewById(R.id.searchmeal_btn_search).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                searchMealByName(recipeNameEt.getText().toString(), new MealSearchCallback() {
+                    @Override
+                    public void onResult(String result) {
+
+                        try {
+                            JSONObject response = new JSONObject(result);
+                            JSONArray mealsJsonArray = response.getJSONArray("meals");
 
 
+                            for(int i=0; i<mealsJsonArray.length(); i++){
+                                JSONObject mealJsonObject = mealsJsonArray.getJSONObject(i);
+                                allMeals.add(new Meal(mealJsonObject.getString("strMeal"),
+                                        mealJsonObject.getString("strCategory"),mealJsonObject.getString("strInstructions"),
+                                        mealJsonObject.getString("strMealThumb")));
+                            }
+
+
+                            recyclerView.setLayoutManager(new LinearLayoutManager(A6Activity.this));
+
+
+                            mealAdapter = new MealAdapter(A6Activity.this, allMeals);
+                            recyclerView.setAdapter(mealAdapter);
+
+
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                    }
+                });
+
+            }
+        });
+
+
+
+    }
+
+
+    public void searchMealByName(String mealName, MealSearchCallback callback) {
+        // Replace spaces with URL encoded character to ensure the URL is valid
+        String queryUrl = "https://www.themealdb.com/api/json/v1/1/search.php?s=" + mealName.replace(" ", "%20");
+
+        // Use a background thread to perform network request
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                HttpURLConnection urlConnection = null;
+                BufferedReader reader = null;
+
+                try {
+                    URL url = new URL(queryUrl);
+                    urlConnection = (HttpURLConnection) url.openConnection();
+                    urlConnection.setRequestMethod("GET");
+                    urlConnection.connect();
+
+                    InputStream inputStream = urlConnection.getInputStream();
+                    StringBuilder builder = new StringBuilder();
+
+                    if (inputStream == null) {
+                        // Nothing to do.
+                        return;
+                    }
+                    reader = new BufferedReader(new InputStreamReader(inputStream));
+
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        // Since it's JSON, adding a newline isn't necessary (it won't affect parsing)
+                        // But it does make debugging a *lot* easier if you print out the completed
+                        // buffer for debugging.
+                        builder.append(line).append("\n");
+                    }
+
+                    if (builder.length() == 0) {
+                        // Stream was empty. No point in parsing.
+                        return;
+                    }
+                    String mealJsonStr = builder.toString();
+
+                    A6Activity.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            callback.onResult(mealJsonStr);
+                        }
+                    });
+
+
+                } catch (IOException e) {
+                    // Log error
+                    e.printStackTrace();
+
+                } finally {
+
+                    if (urlConnection != null) {
+                        urlConnection.disconnect();
+                    }
+                    if (reader != null) {
+                        try {
+                            reader.close();
+                        } catch (final IOException e) {
+                            // Log error
+                            e.printStackTrace();
+                        }
+                    }
+                }
+            }
+        }).start();
     }
 
 
